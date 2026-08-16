@@ -1,0 +1,14 @@
+{
+  "name": "brasil-m3u-generator",
+  "version": "1.0.0",
+  "description": "Gera uma playlist M3U a partir de uma API autorizada de canais e eventos.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "build": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
