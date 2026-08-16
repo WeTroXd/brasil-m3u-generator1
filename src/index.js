@@ -32,10 +32,27 @@ let channels = [];
 let events = [];
 
 if (sportsOnly) {
+  console.log(`Buscando conteúdo para: "${query}"`);
+
   const searchResult = await search(query);
+
+  // ==========================================================
+  // DIAGNÓSTICO TEMPORÁRIO
+  // Mostra exatamente o que a API está retornando.
+  // ==========================================================
+  console.log("");
+  console.log("===== RESPOSTA COMPLETA DA API =====");
+  console.log(JSON.stringify(searchResult, null, 2));
+  console.log("====================================");
+  console.log("");
+
   const data = dataOf(searchResult);
 
-  if (data && !Array.isArray(data) && typeof data === "object") {
+  if (
+    data &&
+    !Array.isArray(data) &&
+    typeof data === "object"
+  ) {
     channels = asArray(data.channels);
     events = asArray(data.events);
   } else {
@@ -49,14 +66,18 @@ if (sportsOnly) {
     );
 
     events = items.filter(
-      item => item && typeof item === "object"
+      item =>
+        item &&
+        typeof item === "object"
     );
   }
 
+  // Mantém somente canais esportivos
   channels = channels.filter(channel =>
     isSportsCategory(channel.category)
   );
 
+  // Se LIVE_ONLY estiver ativado, mantém somente eventos live
   if (liveOnly) {
     events = events.filter(
       event =>
@@ -64,14 +85,71 @@ if (sportsOnly) {
     );
   }
 
+  // Se não encontrou eventos e LIVE_ONLY estiver ativado,
+  // tenta consultar diretamente os esportes ao vivo.
   if (events.length === 0 && liveOnly) {
+    console.log("Nenhum evento encontrado na busca.");
+    console.log("Consultando /sports?status=live...");
+
     const liveResult = await getLiveSports();
+
+    console.log("");
+    console.log("===== RESPOSTA /sports?status=live =====");
+    console.log(JSON.stringify(liveResult, null, 2));
+    console.log("=========================================");
+    console.log("");
+
     events = asArray(dataOf(liveResult));
   }
 } else {
+  console.log("SPORTS_ONLY está desativado.");
+  console.log("Buscando todos os canais...");
+
   const channelResult = await getChannels();
+
+  console.log("");
+  console.log("===== RESPOSTA /channels =====");
+  console.log(JSON.stringify(channelResult, null, 2));
+  console.log("==============================");
+  console.log("");
+
   channels = asArray(dataOf(channelResult));
 }
+
+// ==========================================================
+// RESUMO ANTES DA GERAÇÃO
+// ==========================================================
+
+console.log("");
+console.log("===== RESUMO =====");
+console.log(`Canais encontrados: ${channels.length}`);
+console.log(`Eventos encontrados: ${events.length}`);
+console.log("==================");
+console.log("");
+
+// Mostra quais campos de stream existem,
+// sem tentar extrair embed_url.
+for (const channel of channels) {
+  console.log(
+    `[CANAL] ${channel.name || channel.id || "Sem nome"} | ` +
+    `stream_url: ${channel.stream_url ? "SIM" : "NÃO"} | ` +
+    `embed_url: ${channel.embeds?.length ? "SIM" : "NÃO"}`
+  );
+}
+
+for (const event of events) {
+  console.log(
+    `[EVENTO] ${event.title || event.id || "Sem nome"} | ` +
+    `stream_url: ${event.stream_url ? "SIM" : "NÃO"} | ` +
+    `embed_url: ${event.embeds?.length ? "SIM" : "NÃO"}`
+  );
+}
+
+console.log("");
+
+// ==========================================================
+// GERA PLAYLIST
+// ==========================================================
 
 const playlist = buildPlaylist(channels, events);
 
@@ -83,10 +161,20 @@ await fs.writeFile(
   "utf8"
 );
 
-console.log(
-  `Playlist gerada: ${channels.length} canais + ${events.length} eventos.`
-);
+// ==========================================================
+// CONTAGEM FINAL
+// ==========================================================
+
+const playlistEntries =
+  (playlist.match(/#EXTINF:/g) || []).length;
+
+console.log("===== RESULTADO =====");
+console.log(`Playlist gerada: ${channels.length} canais + ${events.length} eventos.`);
+console.log(`Entradas M3U geradas: ${playlistEntries}`);
+console.log("=====================");
+console.log("");
 
 console.log(
-  "Somente campos stream_url são usados; embed_url não é extraído."
+  "Somente campos stream_url são usados. " +
+  "Nenhum embed_url é extraído ou convertido."
 );
